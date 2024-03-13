@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <cmath>
 #include <algorithm>
+#include <sstream>
 
 using namespace std;
 
@@ -43,7 +44,7 @@ struct Snake {
     vector<Tail> tail;
 };
 
-enum Action{up, down, left, right};
+enum Action{up, down, left, right, none};
 
 
 struct State {
@@ -89,11 +90,14 @@ struct key_value{
 };
 
 bool comp_action_value(action_value pair1, action_value pair2) {
-    return pair1.value < pair2.value;
+    return pair1.value > pair2.value;
+}
+
+bool comp_reward(float reward1, float reward2){
+    return reward1 < reward2;
 }
 class QlearningAgent{
 private:
-vector<key_value> qTable;
 State last_state;
 Action last_action;
 double epsilon;
@@ -102,6 +106,7 @@ double min_eps;
 double lastDistance;
 
 public:
+vector<key_value> qTable;
     QlearningAgent(double epsilon, double eps_dis, double min_eps) {
         this->epsilon = epsilon;
         this->eps_dis = eps_dis;
@@ -120,8 +125,74 @@ public:
     }
 
     void update_lastDistance(double lastDistance){
+        //cout << "FROM DISTANCE: " << this->lastDistance << endl;
         this->lastDistance =  lastDistance;
+        //cout << "updated distance: "<<this->lastDistance<<endl;
     }
+
+    void loadQValues(const string& filename) { 
+        ifstream inFile(filename);
+        if (!inFile) {
+            cerr << "Error: Unable to open file " << filename << endl;
+            return;
+        }
+
+        qTable.clear(); // Clear the existing Q-table
+
+        string line;
+        while (getline(inFile, line)) {
+            stringstream ss(line);
+            string token;
+            vector<string> tokens;
+            while (getline(ss, token, ',')) {
+                tokens.push_back(token);
+            }
+
+            // Parse the state components
+            State state;
+            state.c1 = stoi(tokens[0]);
+            state.c2 = stoi(tokens[1]);
+            state.c3 = stoi(tokens[2]);
+            state.c4 = stoi(tokens[3]);
+            state.c5 = stoi(tokens[4]);
+            state.c6 = stoi(tokens[5]);
+            state.c7 = stoi(tokens[6]);
+            state.c8 = stoi(tokens[7]);
+            state.x = stoi(tokens[8]);
+            state.y = stoi(tokens[9]);
+
+            // Parse the action and value
+            Action action = static_cast<Action>(stoi(tokens[10]));
+            float value = stof(tokens[11]);
+
+            // Add the state-action pair and value to the Q-table
+            qTable.push_back({{state, action}, value});
+        }
+
+        inFile.close();
+        cout << "Q-values loaded from " << filename << endl;
+    }
+
+    void saveQValues(const string& filename)  {
+        ofstream outFile(filename);
+        if (!outFile) {
+            cerr << "Error: Unable to open file " << filename << endl;
+            return;
+        }
+
+        for (const auto& keyValue : qTable) {
+            const auto& state = keyValue.pair.state;
+            const auto& action = keyValue.pair.action;
+            const auto& value = keyValue.value;
+            outFile << state.c1 << "," << state.c2 << "," << state.c3 << "," << state.c4 << ","
+                    << state.c5 << "," << state.c6 << "," << state.c7 << "," << state.c8 << ","
+                    << state.x << "," << state.y << "," << action << "," << value << endl;
+        }
+
+        outFile.close();
+        cout << "Q-values saved to " << filename << endl;
+    }
+
 
     State getState(Snake snake, Fruit fruit, double distance){
         int new_state[9];
@@ -144,9 +215,32 @@ public:
                         calculated = true;
                     }
                 }
-                if (fruit.x == x_block && fruit.y == y_block){
-                    new_state[index] = 2;
-                    calculated = true;
+//              cout << "(x: "<< x << ") - (y: "<<y<<")"<<endl;
+//              cout << "(snake_x: "<< snake.head_x << ") - (snake_y: "<< snake.head_y<<")"<<endl;
+                int x_dir = x;
+                int y_dir = y;
+                //realative to the head of the snake
+                int delta_snake_x = snake.head_x + x_dir * CELL_SIZE;
+                int delta_snake_y = snake.head_y + y_dir * CELL_SIZE;
+//              cout << "----------------------------------------" <<endl;
+                // loop through the whole field to find food
+                while (delta_snake_x < SCREEN_WIDTH && delta_snake_x > 0 && delta_snake_y < SCREEN_HEIGHT && delta_snake_y> 0){
+//                  cout << "x_dir, y_dir: " << x_dir << " ,  " << y_dir << endl;
+//                  cout << "DELTA Position: (" << delta_snake_x << ", " << delta_snake_y << ")" << endl; 
+//                  cout << "Fruit Position: (" << fruit.x << ", " << fruit.y << ")" << endl; 
+//                  cout << "loop Position: (" << x_dir * CELL_SIZE << ", " << y_dir * CELL_SIZE << ")" << endl; 
+                    if (fruit.x == delta_snake_x && fruit.y == delta_snake_y){
+                        new_state[index] = 2;
+                       //cout << "fruittt" << endl;
+                        calculated = true;
+                        break;
+                    }
+                    x_dir += x;
+                    y_dir += y;
+
+                    //update the relative values of the snake head
+                    delta_snake_x = snake.head_x + x_dir * CELL_SIZE;
+                    delta_snake_y = snake.head_y + y_dir * CELL_SIZE;
                 }
                 if (!calculated){
                     double new_distance = sqrt(pow(x_block - fruit.x, 2) + pow(y_block - fruit.y, 2));
@@ -160,15 +254,19 @@ public:
 
     }
 
-    void updateQValue(State state, Action action, int reward, State nextState, double learningRate, double discountValue){
+    void updateQValue(State state, Action action, int reward, State nextState, float learningRate, float discountValue){
         State_action sa = {state, action};
         bool found = false;
         // for every Q(s, a) pair 
+        float maxNextQValue = getMaxQValue(nextState);
         for (auto& item: qTable){
             // check if state and action are being saved somewhere
             if (item.pair == sa){
                 // if so update the value -> Q(s, a)
-                float newValue = (1 - learningRate) * item.value + learningRate * (reward + discountValue* getMaxQValue(nextState));
+                float oldValue = item.value;
+                //float newValue = (1 - learningRate) * oldValue + learningRate * (reward + discountValue * maxNextQValue);
+                float newValue = oldValue + learningRate * (reward + discountValue * maxNextQValue - oldValue);
+                //cout << "newValue: "<< newValue <<", oldValue: "<< oldValue << endl;
                 item.value = newValue;
                 found = true;
                 break;
@@ -176,7 +274,7 @@ public:
         }
         // if we dont find the Q(s, a) -> add a new pair to the Table
         if (!found) {
-            qTable.push_back({sa, learningRate * (reward + discountValue * getMaxQValue(nextState))});
+            qTable.push_back({sa, learningRate * (reward + discountValue * maxNextQValue)});
         }
     }
     float getq(State_action pair){
@@ -191,9 +289,9 @@ public:
         return qTable.at(x).value;
     }
 
-    Action getAction(State state, double epsilon) {
+    Action getAction(State state) {
         // Exploration
-        if ((random() % 100) < epsilon)
+        if ((random() % 100) < this->epsilon)
         {
             switch (random() % 4)
             {
@@ -205,6 +303,8 @@ public:
                     return Action::up;
                 case 3:
                     return Action::down;
+                default:
+                    return Action::none;
             }
         }
         vector<action_value> qvals;
@@ -212,46 +312,59 @@ public:
         qvals.push_back({Action::up, this->getq({state, Action::up})});
         qvals.push_back({Action::left, this->getq({state, Action::left})});
         qvals.push_back({Action::right, this->getq({state, Action::right})});
+        qvals.push_back({Action::none, this->getq({state, Action::none})});
         action_value *x, *y;
         sort(qvals.begin(), qvals.end(), comp_action_value);
-        vector<action_value> maxqs;
-        for (auto qs :qvals)
-        {
-            if (qs.value == qvals[0].value)
-            {
-                maxqs.push_back(qs);
-            }
-        }
-        unsigned long index = random() % maxqs.size();
-        return maxqs[index].action;
+//      for (const auto& qval : qvals) {
+//          cout << "Action: " << qval.action << ", Value: " << qval.value << endl;
+//      }
+        return qvals[0].action;
     }
 
     int getReward(Snake snake, Fruit fruit,double distance, int amount_without_food, bool dead){
         int reward = 0;
-        if(dead){
-            reward -= 5000;
-        }
 
-        if (snake.head_x == fruit.x && snake.head_y == fruit.y){
-            reward += 1000;
-        }
-        // Reward for moving closer to the food
+        // Distance-based rewards
         if (distance < this->lastDistance) {
-            reward += 10;
+            // Reward the snake for moving closer to the fruit
+            reward += 100;
+            //cout << "CLOSER: "<< reward << endl;
+        } else if (distance > this->lastDistance) {
+            // Penalize the snake for moving away from the fruit
+            reward -= 10;
+            //cout << "AWAY: "<< reward << endl;
         }
-        // Reward for not moving away from the food
-        if (distance == this->lastDistance) {
-            reward += 5;
-        }
-        // Penalty for not eating food for a while
-    
-        // Additional reward or penalty conditions can be added as needed
-        return reward;
-    }
 
+        // Eating fruit reward
+        if (snake.head_x == fruit.x && snake.head_y == fruit.y) {
+            // Reward the snake for eating the fruit
+            reward += 2000;
+        }
+
+        // Death penalty
+        if (dead) {
+            // Penalize the snake heavily for dying
+            reward -= 50;
+            //cout << "--DEAD--: " << reward << endl;
+        }
+        // Encourage continuous movement and exploration
+        if (amount_without_food > 0){
+            reward -= amount_without_food;
+        }
+        return reward;
+}
+//  float getMaxQValue(State state){ 
+//      vector<float> qvals;
+//      qvals.push_back(this->getq({state, Action::down}));
+//      qvals.push_back(this->getq({state, Action::up}));
+//      qvals.push_back(this->getq({state, Action::left}));
+//      qvals.push_back(this->getq({state, Action::right}));
+//      sort(qvals.begin(), qvals.end(), comp_reward);
+//      return qvals[0];
+//  }
     float getMaxQValue(State state){
         // returns the MAX Q value for a given state
-        float maxQValue = -numeric_limits<float>::infinity();
+        float maxQValue = 0.0;
         for (const auto& item : qTable) {
             if (item.pair.state == state && item.value > maxQValue) {
                 maxQValue = item.value;
@@ -388,26 +501,24 @@ bool is_food_eaten;
             case UP:
                 snake.ydir = -1;
                 snake.xdir = 0;
-                snake.head_y -= snake.segmentSize;
                 break;
             case DOWN:
                 snake.ydir = 1;
                 snake.xdir = 0;
-                snake.head_y += snake.segmentSize;
                 break;
             case LEFT:
                 snake.xdir = -1;
                 snake.ydir = 0;
-                snake.head_x -= snake.segmentSize;
                 break;
             case RIGHT:
                 snake.xdir = 1;
                 snake.ydir = 0;
-                snake.head_x += snake.segmentSize;
                 break;
             default:
                 break;
         }
+        snake.head_x += snake.xdir * snake.segmentSize;
+        snake.head_y += snake.ydir * snake.segmentSize;
 
         checkCollision();
 
@@ -416,7 +527,7 @@ bool is_food_eaten;
             // check collision with tail 
             if (snake.head_x == snake.tail[i].x && snake.head_y == snake.tail[i].y){
                 this->quit = true;
-                cout << "GAME OVER, amount of points: " << this->point <<endl;
+                //cout << "GAME OVER, amount of points: " << this->point <<endl;
             }
 
         }
@@ -503,7 +614,12 @@ bool is_food_eaten;
                 break;
         }
         //cout << "x: " << snake.head_x << "y: " << snake.head_y << endl;
-        snake.direction = newDirection;
+        if ((newDirection == UP && snake.direction != DOWN) ||
+            (newDirection == DOWN && snake.direction != UP) ||
+            (newDirection == LEFT && snake.direction != RIGHT) ||
+            (newDirection == RIGHT && snake.direction != LEFT)) {
+            snake.direction = newDirection;
+        }
 
         update();
     }
@@ -526,8 +642,8 @@ private:
     QlearningAgent* agent;
     Game* env;
     int state;
-    double learningRate;
-    double discountRate;
+    float learningRate;
+    float discountRate;
     double eps;
     int total_points;
     long long gencount;
@@ -585,7 +701,7 @@ public:
                 State nextState = agent->getState(env->snake, env->fruit, distance);
 
                 // Choose an action using epsilon-greedy policy
-                Action chosenAction = agent->getAction(nextState, this->eps);
+                Action chosenAction = agent->getAction(nextState);
 
                 // Perform the chosen action in the environment
                 env->performAction(chosenAction);
@@ -607,13 +723,14 @@ public:
                 } else {
                     amount_without_food++;
                 }
-                if (amount_without_food > 1000){
+                if (amount_without_food > 200){
                     break;
                 }
                 //printf("reward %d\n", total_reward);
                 currentState = nextState;
                 //env->render();
-                //SDL_Delay(5);
+                //SDL_Delay(50);
+                agent->update_lastDistance(distance);
 
             }
             deathcount++;
@@ -629,27 +746,66 @@ public:
 
         // Print the average reward obtained over all episodes
         cout << "Average Reward: " << this->total_points / numEpisodes << endl;
+        agent->saveQValues("longest_weights.txt");
     }
+    
 
 };
 
-int main() {
+  int main() {
     // Seed the random number generator
-    srand(static_cast<unsigned>(time(0)));
+    srand(time(0));
     // Create the Q-learning agent
-    double eps= 0.2;
-    double eps_dis = 0.9992;
-    double min_eps = 0.001;
-    QlearningAgent qAgent(eps, eps_dis, min_eps);
+    double epsilon = 0.7;       // Example value, replace with the desired epsilon value
+    double eps_dis = 0.99;
+    double min_eps = 0.1;
+    QlearningAgent qAgent(epsilon, eps_dis, min_eps);
+    qAgent.loadQValues("longest_weights.txt");
+    cout << "amount weights: "<< qAgent.qTable.size() << endl;
     // Set the learning parameters
     double learningRate = 0.1;   // Example value, replace with the desired learning rate
     double discountRate = 0.9;  // Example value, replace with the desired discount rate
-    double epsilon = 0.1;       // Example value, replace with the desired epsilon value
     // Create the training instance
     Training training(&qAgent, learningRate, discountRate, epsilon);
     // Specify the number of episodes for training
-    int numEpisodes = 2000;  // Example value, replace with the desired number of episodes
+    int numEpisodes = 1500;  // Example value, replace with the desired number of episodes
     // Train the agent
     training.train(numEpisodes);
     return 0;
-}
+  }
+
+//int main() {
+//  // Seed the random number generator
+//  srand(static_cast<unsigned>(time(0)));
+//  
+//  // Create the Q-learning agent
+//  double epsilon = 0.1;       // Example value, replace with the desired epsilon value
+//  double eps_dis = 0.9992;
+//  double min_eps = 0.001;
+//  QlearningAgent qAgent(epsilon, eps_dis, min_eps);
+
+//  // Load the Q-values from a file
+//  qAgent.loadQValues("longest_weights.txt");
+//  
+//  // Create a game instance
+//  Game game;
+//  
+//  // Let the snake play using the learned Q-values
+//  while (!game.isGameOver()) {
+//      // Get the current state of the game
+//      State currentState = game.getCurrentState();
+//      
+//      // Choose an action using the learned Q-values
+//      Action chosenAction = qAgent.getAction(currentState);
+//      
+//      // Perform the chosen action
+//      game.performAction(chosenAction);
+//      
+//      // Render the game
+//      game.render();
+//      
+//      // Delay to control the frame rate
+//      SDL_Delay(50);
+//  }
+
+//  return 0;
