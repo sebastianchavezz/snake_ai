@@ -1,21 +1,20 @@
+//agent.h
 #ifndef QLEARNING_AGENT_H
 #define QLEARNING_AGENT_H
 
 #include "snake.h"
 #include "game_logic.h"
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <vector>
-#include <algorithm>
-#include <cmath>
-#include <cstdlib>
-#include <ctime>
 
 // Define enums and structs used in your code
 
 enum Action{up, down, left, right, none};
 
+struct State {
+    // need to find a way to make a State unique, the values can only be 2, -1, 1 or 0
+    int c1, c2, c3, c4, c5, c6, c7, c8;
+    //this values can be 0 to 640 for x and 0 to 480 for the y
+    int x, y;
+};
 struct State_action{
     State state;
     Action action;
@@ -27,12 +26,6 @@ struct action_value{
 struct key_value{
     State_action pair;
     float value;
-};
-struct State {
-    // need to find a way to make a State unique, the values can only be 2, -1, 1 or 0
-    int c1, c2, c3, c4, c5, c6, c7, c8;
-    //this values can be 0 to 640 for x and 0 to 480 for the y
-    int x, y;
 };
 
 // Define function prototypes
@@ -49,9 +42,9 @@ private:
     double eps_dis;
     double min_eps;
     double lastDistance;
-    std::vector<key_value> qTable;
 
 public:
+    std::vector<key_value> qTable;
     QlearningAgent(double epsilon, double eps_dis, double min_eps);
     std::vector<key_value> getQTable();
     void updateEpsilon();

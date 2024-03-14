@@ -1,4 +1,5 @@
-#include "game_logic.h"
+#include "../includes/agent.h"
+#include "../includes/game_logic.h"
 
 
 GameLogic::GameLogic() : gameOver(false) {

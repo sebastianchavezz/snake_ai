@@ -1,4 +1,10 @@
+//game_logic.h
+#ifndef GAME_LOGIC
+#define GAME_LOGIC
+
 #include "snake.h"
+
+
 
 class GameLogic {
 private:
@@ -22,3 +28,4 @@ public:
     bool isFoodEaten();
     int getReward() const;
 };
+#endif 

@@ -1,6 +1,8 @@
 
 #include "../includes/agent.h"
 
+using namespace std;
+
 bool operator==(State state1, State state2){
     return (
         state1.c1 == state2.c1 &&
@@ -15,8 +17,6 @@ bool operator==(State state1, State state2){
         state1.y == state2.y 
     );
 }
-
-
 
 bool operator==(State_action sa1, State_action sa2){
     return (sa1.state == sa2.state && sa1.action == sa2.action);
@@ -36,7 +36,8 @@ QlearningAgent::QlearningAgent(double epsilon, double eps_dis, double min_eps) {
     this->min_eps = min_eps;
     init_lastDistance();
 }
-vector<key_value> QlearningAgent::getQTable(){
+vector<key_value> QlearningAgent::getQTable()
+{
     return qTable;
 }
 

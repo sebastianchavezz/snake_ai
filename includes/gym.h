@@ -1,3 +1,4 @@
+//gym.h
 #ifndef GYM
 #define GYM
 
@@ -7,7 +8,6 @@
 class Gym {
 private:
     QlearningAgent* agent;
-    GameLogic* env;
     double learningRate;
     double discountRate;
     double eps;
@@ -18,9 +18,8 @@ private:
     int longest_tail;
 
 public:
-    Gym(QlearningAgent* agent);
+    Gym(QlearningAgent* agent, double lr, double dis_rate, double eps);
     void train(int numEpisodes);
-    void test();
 };
 
 #endif

@@ -1,4 +1,6 @@
 #include "../includes/game_render.h"
+#include "../includes/game_logic.h"
+
 
 GameRenderer::GameRenderer() {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
