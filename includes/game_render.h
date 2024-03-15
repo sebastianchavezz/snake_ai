@@ -12,7 +12,7 @@ private:
 public:
     GameRenderer();
     ~GameRenderer();
-    void render(const Snake& snake, const Fruit& fruit);
+    void render(const Snake& snake, const Fruit& fruit, int fps);
 };
 
 #endif

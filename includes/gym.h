@@ -4,6 +4,7 @@
 
 #include "agent.h"
 #include "game_logic.h"
+#include "game_render.h"
 
 class Gym {
 private:
@@ -19,7 +20,7 @@ private:
 
 public:
     Gym(QlearningAgent* agent, double lr, double dis_rate, double eps);
-    void train(int numEpisodes);
+    void train(int numEpisodes, GameRenderer* render);
 };
 
 #endif

@@ -28,7 +28,7 @@ GameRenderer::~GameRenderer() {
     SDL_Quit();
 }
 
-void GameRenderer::render(const Snake& snake, const Fruit& fruit) {
+void GameRenderer::render(const Snake& snake, const Fruit& fruit, int fps) {
 // Rendering logic goes here
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
@@ -47,4 +47,5 @@ void GameRenderer::render(const Snake& snake, const Fruit& fruit) {
 
     // Update the window
     SDL_RenderPresent(renderer);
+    SDL_Delay(fps);
 }

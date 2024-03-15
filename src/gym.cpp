@@ -30,7 +30,7 @@ void printStatistics(long long gencount, int longest_tail,long long total_reward
     }
 }
 
-void Gym::train(int numEpisodes){
+void Gym::train(int numEpisodes, GameRenderer* render){
         cout << "STARTING TRAINING" << endl;
         for (int episode = 1; episode <= numEpisodes; ++episode) {
             GameLogic *game_logic = new GameLogic();
@@ -81,6 +81,8 @@ void Gym::train(int numEpisodes){
                 //printf("reward %d\n", total_reward);
                 currentState = nextState;
                 agent->update_lastDistance(distance);
+                render->render(game_logic->snake, game_logic->fruit, 10);
+                
 
             }
             deathcount++;

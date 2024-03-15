@@ -12,8 +12,9 @@ int main(){
     double epsilon = 0.7;       // Example value, replace with the desired epsilon value
     double eps_dis = 0.99;
     double min_eps = 0.1;
+    GameRenderer* render = new GameRenderer();
     QlearningAgent qAgent(epsilon, eps_dis, min_eps);
-    qAgent.loadQValues("longest_weights.txt");
+    qAgent.loadQValues("weights/longest_weights.txt");
     cout << "amount weights: "<< qAgent.qTable.size() << endl;
     // Set the learning parameters
     double learningRate = 0.1;   // Example value, replace with the desired learning rate
@@ -23,6 +24,6 @@ int main(){
     // Specify the number of episodes for training
     int numEpisodes = 1500;  // Example value, replace with the desired number of episodes
     // Train the agent
-    gym.train(numEpisodes);
+    gym.train(numEpisodes, render);
     return 0;
 }
